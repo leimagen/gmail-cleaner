@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Gmail Cleaner{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+{% if not has_credentials %}
+<div class="alert alert-warning">
+  <span>⚠️</span>
+  <span>Falta <code>credentials/credentials.json</code>. <a href="/setup">Configurar →</a></span>
+</div>
+{% endif %}
+
+<!-- Stats -->
+<div class="stats-grid">
+  <div class="stat-card {% if spam_count > 0 %}stat-red{% else %}stat-green{% endif %}">
+    <div class="stat-value">{{ spam_count }}</div>
+    <div class="stat-label">Emails de riesgo sin revisar</div>
+  </div>
+  <div class="stat-card {% if breach_count > 0 %}stat-red{% else %}stat-green{% endif %}">
+    <div class="stat-value">{{ breach_count }}</div>
+    <div class="stat-label">Brechas de datos detectadas</div>
+  </div>
+  <div class="stat-card stat-blue">
+    <div class="stat-value">{{ blocked_count }}</div>
+    <div class="stat-label">Remitentes bloqueados</div>
+  </div>
+</div>
+
+<!-- Quick actions -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-bottom:24px;">
+  <div class="card" style="display:flex;flex-direction:column;gap:12px;">
+    <div class="card-title">📧 Emails</div>
+    <p style="font-size:13px;color:var(--text-muted);flex:1;">
+      Analiza tu bandeja de entrada para detectar spam, phishing y newsletters indeseadas.
+    </p>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-primary" id="scan-btn-dashboard" data-account-id="{{ active.id }}"
+              onclick="scanAndGo(event, '{{ active.id }}')">
+        ▶ Escanear ahora
+      </button>
+      <a href="/emails/{{ active.id }}" class="btn btn-ghost">Ver emails</a>
+    </div>
+  </div>
+
+  <div class="card" style="display:flex;flex-direction:column;gap:12px;">
+    <div class="card-title">🔓 Brechas de datos</div>
+    <p style="font-size:13px;color:var(--text-muted);flex:1;">
+      Verifica si tu email aparece en brechas de datos conocidas (via Have I Been Pwned).
+    </p>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-danger btn-sm" id="breach-check-btn" data-account-id="{{ active.id }}">
+        Verificar brechas
+      </button>
+      <a href="/breaches/{{ active.id }}" class="btn btn-ghost btn-sm">Ver reporte</a>
+    </div>
+  </div>
+
+</div>
+
+<!-- Last scan info -->
+<div class="card">
+  <div class="card-title">Estado de la cuenta</div>
+  <div style="display:flex;gap:24px;flex-wrap:wrap;font-size:13px;">
+    <div>
+      <span style="color:var(--text-muted);">Cuenta activa:</span>
+      <strong>{{ active.email }}</strong>
+    </div>
+    <div>
+      <span style="color:var(--text-muted);">Último scan:</span>
+      {% if active.last_scan_at %}
+      <strong>{{ active.last_scan_at.strftime('%d/%m/%Y %H:%M') }}</strong>
+      {% else %}
+      <strong style="color:var(--yellow);">Nunca — escanea ahora</strong>
+      {% endif %}
+    </div>
+    <div>
+      <span style="color:var(--text-muted);">Cuentas configuradas:</span>
+      <strong>{{ accounts | length }}</strong>
+    </div>
+    <a href="/accounts" class="btn btn-ghost btn-sm">Gestionar cuentas</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function scanAndGo(e, accountId) {
+  const btn = document.getElementById('scan-btn-dashboard');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Escaneando...';
+  try {
+    const res = await fetch(`/api/scan/${accountId}`, { method: 'POST' });
+    const data = await res.json();
+    window.location.href = `/emails/${accountId}`;
+  } catch {
+    btn.disabled = false;
+    btn.innerHTML = '▶ Escanear ahora';
+  }
+}
+</script>
+{% endblock %}

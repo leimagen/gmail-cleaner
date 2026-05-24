@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Historial — Gmail Cleaner{% endblock %}
+{% block page_title %}Historial de acciones{% endblock %}
+
+{% block content %}
+{% if logs %}
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Acción</th>
+          <th>Objetivo</th>
+          <th>Resultado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr>
+          <td style="color:var(--text-muted);font-size:12px;white-space:nowrap;">
+            {{ log.timestamp.strftime('%d/%m/%Y %H:%M') }}
+          </td>
+          <td>
+            {% if log.action_type == 'scan' %}
+            <span class="badge badge-blue">📊 Scan</span>
+            {% elif log.action_type == 'unsubscribe' %}
+            <span class="badge badge-yellow">📤 Desuscripción</span>
+            {% elif log.action_type == 'block' %}
+            <span class="badge badge-red">🚫 Bloqueo</span>
+            {% elif log.action_type == 'breach_check' %}
+            <span class="badge badge-red">🔓 Breach check</span>
+            {% else %}
+            <span class="badge badge-gray">{{ log.action_type }}</span>
+            {% endif %}
+          </td>
+          <td style="font-size:13px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+            {{ log.target or '—' }}
+          </td>
+          <td style="font-size:12px;color:var(--text-muted);max-width:260px;">
+            {{ log.result or '—' }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="empty-state">
+  <div class="empty-icon">📋</div>
+  <h3>Sin historial todavía</h3>
+  <p>Las acciones realizadas (scans, bloqueos, desuscripciones) aparecerán aquí.</p>
+</div>
+{% endif %}
+{% endblock %}

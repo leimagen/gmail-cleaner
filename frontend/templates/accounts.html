@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Cuentas — Gmail Cleaner{% endblock %}
+{% block page_title %}Cuentas{% endblock %}
+
+{% block topbar_actions %}
+<a href="/accounts/add" class="btn btn-primary btn-sm">+ Agregar cuenta</a>
+{% endblock %}
+
+{% block content %}
+{% if accounts %}
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Email</th>
+          <th>Nombre</th>
+          <th>Agregada</th>
+          <th>Último scan</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for acc in accounts %}
+        <tr>
+          <td>
+            <strong>{{ acc.email }}</strong>
+            {% if acc.id == active_id %}<span class="badge badge-green" style="margin-left:6px;">activa</span>{% endif %}
+          </td>
+          <td style="color:var(--text-muted);">{{ acc.display_name or '—' }}</td>
+          <td style="color:var(--text-muted);">{{ acc.created_at.strftime('%d/%m/%Y') }}</td>
+          <td style="color:var(--text-muted);">
+            {% if acc.last_scan_at %}
+            {{ acc.last_scan_at.strftime('%d/%m/%Y %H:%M') }}
+            {% else %}
+            <span style="color:var(--yellow);">Nunca</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge badge-green">✓ Conectada</span>
+          </td>
+          <td>
+            <div style="display:flex;gap:6px;">
+              <a href="/accounts/{{ acc.id }}/switch" class="btn btn-ghost btn-sm">Activar</a>
+              <a href="/emails/{{ acc.id }}" class="btn btn-ghost btn-sm">Ver emails</a>
+              <button class="btn btn-danger btn-sm action-delete-account"
+                      data-account-id="{{ acc.id }}"
+                      data-email="{{ acc.email }}">
+                Eliminar
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="empty-state">
+  <div class="empty-icon">📭</div>
+  <h3>No hay cuentas configuradas</h3>
+  <p style="margin-bottom:20px;">Agrega tu primera cuenta de Gmail para empezar.</p>
+  <a href="/accounts/add" class="btn btn-primary">+ Agregar cuenta</a>
+</div>
+{% endif %}
+
+{% if not has_credentials %}
+<div class="alert alert-warning">
+  <span>⚠️</span>
+  <span>Para agregar cuentas primero configura <code>credentials/credentials.json</code>. <a href="/setup">Ver instrucciones</a>.</span>
+</div>
+{% endif %}
+{% endblock %}

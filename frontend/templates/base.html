@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Gmail Cleaner{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span>🧹</span> Gmail Cleaner
+    </div>
+    <nav>
+      <a href="/" class="{% if request.url.path == '/' %}active{% endif %}">
+        <span class="nav-icon">🏠</span> Dashboard
+      </a>
+      {% if active %}
+      <a href="/emails/{{ active.id }}" class="{% if 'emails' in request.url.path %}active{% endif %}">
+        <span class="nav-icon">📧</span> Emails
+      </a>
+      <a href="/breaches/{{ active.id }}" class="{% if 'breaches' in request.url.path %}active{% endif %}">
+        <span class="nav-icon">🔓</span> Brechas
+      </a>
+      <a href="/history/{{ active.id }}" class="{% if 'history' in request.url.path %}active{% endif %}">
+        <span class="nav-icon">📋</span> Historial
+      </a>
+      {% endif %}
+      <a href="/accounts" class="{% if 'accounts' in request.url.path %}active{% endif %}">
+        <span class="nav-icon">👤</span> Cuentas
+      </a>
+    </nav>
+    {% if active %}
+    <div class="sidebar-account">
+      <div class="account-pill">
+        <span class="account-dot"></span>
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ active.email }}</span>
+      </div>
+      {% if accounts | length > 1 %}
+      <div style="margin-top:8px;">
+        {% for acc in accounts %}
+        {% if acc.id != active.id %}
+        <a href="/accounts/{{ acc.id }}/switch" style="font-size:11px;color:var(--text-muted);display:block;padding:4px 0;">
+          ↪ {{ acc.email }}
+        </a>
+        {% endif %}
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="topbar">
+      <span class="topbar-title">{% block page_title %}{% endblock %}</span>
+      <div style="display:flex;gap:10px;align-items:center;">
+        {% block topbar_actions %}{% endblock %}
+        {% if active %}
+        <button id="scan-btn" class="btn btn-primary btn-sm" data-account-id="{{ active.id }}">
+          ▶ Escanear
+        </button>
+        {% endif %}
+      </div>
+    </div>
+    <div class="page-content">
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="/static/app.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

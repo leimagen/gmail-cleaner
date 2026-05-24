@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agregar cuenta — Gmail Cleaner</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="setup-center">
+  <div class="setup-card" style="max-width:560px;">
+    <div style="margin-bottom:28px;">
+      <div class="wizard-steps">
+        <div class="wizard-step {% if step >= 1 %}{% if step > 1 %}done{% else %}active{% endif %}{% endif %}">
+          <div class="step-num">{% if step > 1 %}✓{% else %}1{% endif %}</div>
+          <span>Conectar</span>
+        </div>
+        <div class="wizard-step {% if step >= 2 %}{% if step > 2 %}done{% else %}active{% endif %}{% endif %}">
+          <div class="step-num">{% if step > 2 %}✓{% else %}2{% endif %}</div>
+          <span>Autorizar</span>
+        </div>
+        <div class="wizard-step {% if step >= 3 %}active{% endif %}">
+          <div class="step-num">3</div>
+          <span>Listo</span>
+        </div>
+      </div>
+    </div>
+
+    {% set error = request.query_params.get('error') %}
+    {% if error %}
+    <div class="alert alert-error" style="margin-bottom:20px;">
+      <span>✗</span>
+      <span>Error: {{ error.replace('_', ' ') }}. Intenta nuevamente.</span>
+    </div>
+    {% endif %}
+
+    {% if step == 1 %}
+    <div class="setup-icon">📧</div>
+    <h2 class="setup-title">Paso 1: Conectar cuenta</h2>
+    <p class="setup-subtitle">
+      Conecta tu cuenta de Gmail via OAuth seguro de Google.<br>
+      Solo solicitamos permisos de lectura y gestión de filtros.
+    </p>
+
+    {% if not has_credentials %}
+    <div class="alert alert-warning">
+      <span>⚠️</span>
+      <span>No hay credenciales configuradas. <a href="/setup">Ir al setup inicial</a>.</span>
+    </div>
+    {% else %}
+    <div class="card" style="text-align:left;margin-bottom:24px;">
+      <div class="card-title">Permisos que se solicitarán</div>
+      <ul style="list-style:none;padding:0;line-height:2;font-size:13px;color:var(--text-muted);">
+        <li>📖 Leer emails (solo metadata — no contenido)</li>
+        <li>🏷️ Crear filtros y etiquetas</li>
+        <li>🗑️ Mover emails a papelera</li>
+        <li>📤 Enviar emails de unsubscribe</li>
+      </ul>
+    </div>
+    <a href="/oauth/start" class="btn btn-primary btn-lg" style="width:100%;justify-content:center;display:flex;">
+      <span>🔗</span> Conectar con Google
+    </a>
+    {% endif %}
+
+    <div style="margin-top:16px;">
+      <a href="/" style="font-size:13px;color:var(--text-muted);">← Volver al dashboard</a>
+    </div>
+
+    {% elif step == 2 %}
+    <div class="setup-icon" style="animation: spin 1s linear infinite;">⚙️</div>
+    <h2 class="setup-title">Autorizando...</h2>
+    <p class="setup-subtitle">Procesando la autorización de Google.</p>
+
+    {% elif step == 3 %}
+    {% set email = request.query_params.get('email', '') %}
+    {% set account_id = request.query_params.get('account_id', '') %}
+    <div class="setup-icon">🎉</div>
+    <h2 class="setup-title">¡Cuenta conectada!</h2>
+    <p class="setup-subtitle">
+      <strong>{{ email }}</strong> fue agregada exitosamente.<br>
+      Se inicializaron {{ 20 }} data brokers para monitorear opt-out.
+    </p>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:24px;">
+      <a href="/api/scan/{{ account_id }}" id="scan-now-btn"
+         class="btn btn-primary btn-lg" style="justify-content:center;display:flex;"
+         onclick="triggerScan(event, '{{ account_id }}')">
+        <span>▶</span> Escanear bandeja ahora
+      </a>
+      <a href="/breaches/{{ account_id }}" class="btn btn-ghost btn-lg"
+         style="justify-content:center;display:flex;"
+         onclick="checkBreaches(event, '{{ account_id }}')">
+        <span>🔓</span> Verificar brechas de datos
+      </a>
+      <a href="/" class="btn btn-ghost btn-lg" style="justify-content:center;display:flex;">
+        Ir al Dashboard →
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+<div id="toast-container"></div>
+<script src="/static/app.js"></script>
+<script>
+async function triggerScan(e, accountId) {
+  e.preventDefault();
+  const btn = e.currentTarget;
+  btn.innerHTML = '<span class="spinner"></span> Escaneando...';
+  btn.style.pointerEvents = 'none';
+  const res = await fetch(`/api/scan/${accountId}`, { method: 'POST' });
+  const data = await res.json();
+  window.location.href = `/emails/${accountId}`;
+}
+
+async function checkBreaches(e, accountId) {
+  e.preventDefault();
+  const btn = e.currentTarget;
+  btn.innerHTML = '<span class="spinner"></span> Verificando...';
+  btn.style.pointerEvents = 'none';
+  const form = new FormData();
+  form.append('account_id', accountId);
+  await fetch('/api/breaches/check', { method: 'POST', body: form });
+  window.location.href = `/breaches/${accountId}`;
+}
+</script>
+</body>
+</html>

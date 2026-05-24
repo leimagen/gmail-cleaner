@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+{% block title %}Emails — Gmail Cleaner{% endblock %}
+{% block page_title %}Emails sospechosos{% endblock %}
+
+{% block content %}
+{% if senders %}
+<div class="alert alert-info" style="margin-bottom:16px;">
+  <span>ℹ️</span>
+  <span>
+    <strong>{{ senders | length }} remitentes</strong> detectados con emails de riesgo.
+    Elige desuscribirte (listas legítimas) o bloquear (spam/phishing).
+  </span>
+</div>
+
+<!-- Bulk action bar — shown only when rows are selected -->
+<div id="bulk-bar" style="display:none; align-items:center; gap:10px; padding:10px 16px;
+     background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; margin-bottom:12px; flex-wrap:wrap;">
+  <span id="bulk-count" style="font-size:13px; color:#0369a1; font-weight:600;"></span>
+  <button id="bulk-unsub-btn" class="btn btn-sm btn-warning"
+          title="Deshabilitado si algún remitente seleccionado no permite desuscripción">
+    Desuscribir seleccionados
+  </button>
+  <button id="bulk-block-btn" class="btn btn-sm btn-danger">
+    Bloquear + eliminar seleccionados
+  </button>
+  <button id="bulk-ignore-btn" class="btn btn-sm btn-ghost">
+    Ignorar seleccionados
+  </button>
+  <button id="bulk-clear-btn" class="btn btn-sm btn-ghost" style="margin-left:auto;">
+    Deseleccionar todo
+  </button>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:32px; padding-right:4px;">
+            <input type="checkbox" id="select-all-chk" title="Seleccionar todo"
+                   style="width:15px; height:15px; cursor:pointer;">
+          </th>
+          <th>Remitente</th>
+          <th>Dominio</th>
+          <th>Riesgo</th>
+          <th style="text-align:center;">Emails</th>
+          <th>Último asunto</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in senders %}
+        <tr>
+          <td style="padding-right:4px;">
+            <input type="checkbox" class="row-check"
+                   data-sender="{{ s.sender }}"
+                   data-has-unsubscribe="{{ 'true' if s.has_unsubscribe and s.risk_level != 'phishing' else 'false' }}"
+                   data-risk="{{ s.risk_level }}"
+                   style="width:15px; height:15px; cursor:pointer;">
+          </td>
+          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+            <span title="{{ s.sender }}">{{ s.sender }}</span>
+          </td>
+          <td style="color:var(--text-muted);font-size:12px;">{{ s.domain }}</td>
+          <td>
+            {% if s.risk_level == 'phishing' %}
+            <span class="badge badge-red">🎣 Phishing</span>
+            {% elif s.risk_level == 'high' %}
+            <span class="badge badge-red">⚠ Alto</span>
+            {% elif s.risk_level == 'medium' %}
+            <span class="badge badge-yellow">~ Medio</span>
+            {% else %}
+            <span class="badge badge-gray">Bajo</span>
+            {% endif %}
+          </td>
+          <td style="text-align:center;font-weight:600;">{{ s.count }}</td>
+          <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-muted);font-size:12px;">
+            {{ s.latest_subject or '—' }}
+          </td>
+          <td>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              {% if s.has_unsubscribe and s.risk_level != 'phishing' %}
+              <button class="btn btn-warning btn-sm action-unsubscribe"
+                      data-account-id="{{ active.id }}"
+                      data-sender="{{ s.sender }}">
+                Desuscribir
+              </button>
+              {% endif %}
+              <button class="btn btn-danger btn-sm action-block"
+                      data-account-id="{{ active.id }}"
+                      data-sender="{{ s.sender }}">
+                Bloquear
+              </button>
+              <button class="btn btn-ghost btn-sm action-ignore"
+                      data-account-id="{{ active.id }}"
+                      data-sender="{{ s.sender }}"
+                      title="Marcar como seguro y quitar de la lista">
+                Ignorar
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if senders | selectattr('risk_level', 'equalto', 'phishing') | list | length > 0 %}
+<div class="alert alert-error">
+  <span>🎣</span>
+  <span>
+    Los remitentes marcados como <strong>Phishing</strong> no tienen opción de desuscripción —
+    confirmarle al spammer que tu email existe solo genera más spam. Solo puedes bloquearlos.
+  </span>
+</div>
+{% endif %}
+
+{% else %}
+<div class="empty-state">
+  <div class="empty-icon">✅</div>
+  <h3>Sin emails de riesgo detectados</h3>
+  <p style="margin-bottom:20px;">
+    {% if active.last_scan_at %}
+    Último scan: {{ active.last_scan_at.strftime('%d/%m/%Y %H:%M') }}
+    {% else %}
+    No has escaneado todavía. Haz un scan para analizar tu bandeja.
+    {% endif %}
+  </p>
+  <button class="btn btn-primary" id="scan-btn" data-account-id="{{ active.id }}">
+    ▶ Escanear ahora
+  </button>
+</div>
+{% endif %}
+
+<script>
+(function () {
+  const ACCOUNT_ID = {{ active.id }};
+  const bar      = document.getElementById('bulk-bar');
+  const countEl  = document.getElementById('bulk-count');
+  const unsubBtn = document.getElementById('bulk-unsub-btn');
+  const blockBtn = document.getElementById('bulk-block-btn');
+  const clearBtn = document.getElementById('bulk-clear-btn');
+  const selectAll = document.getElementById('select-all-chk');
+
+  if (!bar) return; // no senders — empty state
+
+  // ── Selection state ────────────────────────────────────────────────────────
+  function getChecked() {
+    return [...document.querySelectorAll('.row-check:checked')];
+  }
+
+  function updateBar() {
+    const checked = getChecked();
+    const n = checked.length;
+    bar.style.display = n > 0 ? 'flex' : 'none';
+    countEl.textContent = n + (n === 1 ? ' remitente seleccionado' : ' remitentes seleccionados');
+
+    // Unsubscribe is only valid when every selected sender can be unsubscribed
+    const canUnsub = checked.length > 0 && checked.every(cb => cb.dataset.hasUnsubscribe === 'true');
+    unsubBtn.disabled = !canUnsub;
+    if (!canUnsub && n > 0) {
+      unsubBtn.title = 'Algún remitente seleccionado no permite desuscripción (phishing o sin header)';
+    } else {
+      unsubBtn.title = '';
+    }
+  }
+
+  document.querySelectorAll('.row-check').forEach(cb => {
+    cb.addEventListener('change', updateBar);
+  });
+
+  selectAll.addEventListener('change', function () {
+    document.querySelectorAll('.row-check').forEach(cb => { cb.checked = this.checked; });
+    updateBar();
+  });
+
+  clearBtn.addEventListener('click', function () {
+    document.querySelectorAll('.row-check').forEach(cb => { cb.checked = false; });
+    selectAll.checked = false;
+    updateBar();
+  });
+
+  // ── Bulk unsubscribe ───────────────────────────────────────────────────────
+  unsubBtn.addEventListener('click', async function () {
+    const senders = getChecked().map(cb => cb.dataset.sender);
+    if (!senders.length) return;
+    if (!confirm(`¿Desuscribir de ${senders.length} remitente(s)?`)) return;
+
+    unsubBtn.disabled = true;
+    unsubBtn.textContent = 'Procesando…';
+
+    try {
+      const res = await fetch('/api/emails/bulk-unsubscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ account_id: ACCOUNT_ID, senders }),
+      });
+      const j = await res.json();
+      if (typeof toast !== 'undefined') {
+        toast(`Desuscripción: ${j.ok} exitosas, ${j.failed} fallidas`);
+      }
+      setTimeout(() => location.reload(), 1200);
+    } catch (e) {
+      alert('Error: ' + e.message);
+      unsubBtn.disabled = false;
+      unsubBtn.textContent = 'Desuscribir seleccionados';
+    }
+  });
+
+  // ── Bulk block ─────────────────────────────────────────────────────────────
+  blockBtn.addEventListener('click', async function () {
+    const senders = getChecked().map(cb => cb.dataset.sender);
+    if (!senders.length) return;
+    if (!confirm(`¿Bloquear y eliminar emails de ${senders.length} remitente(s)?\n\nSe crearán filtros en Gmail y se eliminarán los emails existentes.`)) return;
+
+    blockBtn.disabled = true;
+    blockBtn.textContent = 'Procesando…';
+
+    try {
+      const res = await fetch('/api/emails/bulk-block', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ account_id: ACCOUNT_ID, senders, delete_existing: true }),
+      });
+      const j = await res.json();
+      if (typeof toast !== 'undefined') {
+        toast(`Bloqueados: ${j.ok}, eliminados: ${j.emails_trashed} emails`);
+      }
+      setTimeout(() => location.reload(), 1200);
+    } catch (e) {
+      alert('Error: ' + e.message);
+      blockBtn.disabled = false;
+      blockBtn.textContent = 'Bloquear + eliminar seleccionados';
+    }
+  });
+
+  // ── Bulk ignore ────────────────────────────────────────────────────────────
+  const ignoreBtn = document.getElementById('bulk-ignore-btn');
+  ignoreBtn.addEventListener('click', async function () {
+    const checked = getChecked();
+    const senders = checked.map(cb => cb.dataset.sender);
+    if (!senders.length) return;
+
+    ignoreBtn.disabled = true;
+    ignoreBtn.textContent = 'Procesando…';
+
+    try {
+      const res = await fetch('/api/emails/bulk-ignore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ account_id: ACCOUNT_ID, senders }),
+      });
+      const j = await res.json();
+      // Remove rows immediately
+      checked.forEach(cb => cb.closest('tr')?.remove());
+      updateBar();
+      if (typeof toast !== 'undefined') {
+        toast(`${j.ok} remitente(s) ignorado(s)`);
+      }
+    } catch (e) {
+      alert('Error: ' + e.message);
+    } finally {
+      ignoreBtn.disabled = false;
+      ignoreBtn.textContent = 'Ignorar seleccionados';
+    }
+  });
+
+  // ── Per-row ignore ─────────────────────────────────────────────────────────
+  document.querySelectorAll('.action-ignore').forEach(function (btn) {
+    btn.addEventListener('click', async function () {
+      const { accountId, sender } = this.dataset;
+      const fd = new FormData();
+      fd.append('account_id', accountId);
+      fd.append('sender', sender);
+      const res = await fetch('/api/emails/ignore', { method: 'POST', body: fd });
+      if (res.ok) {
+        this.closest('tr')?.remove();
+        if (typeof toast !== 'undefined') toast(`${sender} ignorado`);
+      }
+    });
+  });
+}());
+</script>
+{% endblock %}

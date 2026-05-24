@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Gmail Cleaner</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="popup">
+  <!-- Header -->
+  <div class="popup-header">
+    <span class="popup-logo">🧹</span>
+    <span class="popup-title">Gmail Cleaner</span>
+    <span id="server-status" class="server-dot" title="Estado del servidor"></span>
+  </div>
+
+  <!-- Setup (first time) -->
+  <div id="setup-section" class="section hidden">
+    <div class="setup-msg">
+      <div class="setup-icon">⚙️</div>
+      <p>Configura la URL del servidor para conectar con tu app local.</p>
+    </div>
+    <div class="field-group">
+      <label>URL del servidor</label>
+      <input type="text" id="server-url-input" placeholder="http://localhost:8000">
+    </div>
+    <button id="save-settings-btn" class="btn btn-primary btn-full">Guardar y conectar</button>
+  </div>
+
+  <!-- Offline -->
+  <div id="offline-section" class="section hidden">
+    <div class="offline-msg">
+      <div style="font-size:32px;margin-bottom:8px;">🔌</div>
+      <strong>Servidor offline</strong>
+      <p>La app de Gmail Cleaner no está corriendo.<br>
+         Iníciala con <code>uvicorn backend.main:app --reload</code></p>
+    </div>
+    <button id="retry-btn" class="btn btn-ghost btn-full">Reintentar</button>
+    <button id="change-url-btn" class="btn btn-ghost btn-full" style="margin-top:4px;">Cambiar URL</button>
+  </div>
+
+  <!-- Main -->
+  <div id="main-section" class="section hidden">
+    <!-- Account selector -->
+    <div class="account-bar">
+      <span class="acct-dot"></span>
+      <select id="account-select"></select>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat stat-red">
+        <div class="stat-val" id="stat-breaches">—</div>
+        <div class="stat-lbl">Brechas</div>
+      </div>
+      <div class="stat stat-yellow">
+        <div class="stat-val" id="stat-pending">—</div>
+        <div class="stat-lbl">Opt-outs pend.</div>
+      </div>
+      <div class="stat stat-red">
+        <div class="stat-val" id="stat-errors">—</div>
+        <div class="stat-lbl">Errores</div>
+      </div>
+      <div class="stat stat-green">
+        <div class="stat-val" id="stat-confirmed">—</div>
+        <div class="stat-lbl">Confirmados</div>
+      </div>
+    </div>
+
+    <!-- Status bar -->
+    <div id="overall-status" class="status-bar">
+      <span id="status-icon">⏳</span>
+      <span id="status-text">Cargando...</span>
+    </div>
+
+    <div class="meta" id="last-scan-meta"></div>
+
+    <!-- Actions -->
+    <div class="actions">
+      <button id="scan-btn" class="btn btn-primary btn-full">▶ Escanear ahora</button>
+      <div style="display:flex;gap:6px;margin-top:6px;">
+        <button id="open-dashboard-btn" class="btn btn-ghost" style="flex:1;">Dashboard ↗</button>
+        <button id="open-tracking-btn" class="btn btn-ghost" style="flex:1;">Tracking ↗</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="popup-footer">
+    <button id="settings-toggle" class="link-btn">⚙ Configuración</button>
+    <span id="last-updated"></span>
+  </div>
+</div>
+<script src="popup.js"></script>
+</body>
+</html>

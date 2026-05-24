@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bienvenido — Gmail Cleaner</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="setup-center">
+  <div class="setup-card">
+    <div class="setup-icon">🧹</div>
+    <h1 class="setup-title">Gmail Cleaner</h1>
+    <p class="setup-subtitle">
+      Detecta y elimina spam, phishing y listas indeseadas.<br>
+      Revoca permisos y encuentra donde está filtrado tu email.<br>
+      Completamente local — tus datos no salen de tu máquina.
+    </p>
+
+    {% if not has_credentials %}
+    <div class="alert alert-warning" style="text-align:left;margin-bottom:24px;">
+      <span>⚠️</span>
+      <div>
+        <strong>Falta credentials.json</strong><br>
+        Descarga tu archivo de credenciales OAuth de Google Cloud Console y colócalo en <code>credentials/credentials.json</code>.<br>
+        <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:var(--yellow)">
+          Abrir Google Cloud Console →
+        </a>
+      </div>
+    </div>
+    <div class="card" style="text-align:left;margin-bottom:24px;">
+      <div class="card-title">Pasos para configurar</div>
+      <ol style="padding-left:18px;line-height:2;color:var(--text-muted);font-size:13px;">
+        <li>Ir a <strong>Google Cloud Console</strong> → crear proyecto</li>
+        <li>Habilitar <strong>Gmail API</strong></li>
+        <li>Crear credenciales <strong>OAuth 2.0</strong> (tipo: Web Application)</li>
+        <li>Agregar <code>http://localhost:8000/oauth/callback</code> como URI de redirección</li>
+        <li>Descargar <code>credentials.json</code> y colocar en <code>credentials/</code></li>
+        <li>Reiniciar la app y volver aquí</li>
+      </ol>
+    </div>
+    <button class="btn btn-primary btn-lg" onclick="location.reload()" style="width:100%;">
+      Ya lo configuré — Continuar
+    </button>
+    {% else %}
+    <div class="alert alert-success" style="text-align:left;margin-bottom:24px;">
+      <span>✓</span>
+      <span>Credenciales de Google detectadas. Listo para conectar tu primera cuenta.</span>
+    </div>
+    <a href="/oauth/start" class="btn btn-primary btn-lg" style="width:100%;justify-content:center;display:flex;">
+      <span>🔗</span> Conectar cuenta de Gmail
+    </a>
+    {% endif %}
+
+    <div style="margin-top:24px;display:flex;gap:16px;justify-content:center;font-size:12px;color:var(--text-muted);">
+      <span>🔒 OAuth seguro</span>
+      <span>💻 100% local</span>
+      <span>🚫 Sin telemetría</span>
+    </div>
+  </div>
+</div>
+<div id="toast-container"></div>
+</body>
+</html>
