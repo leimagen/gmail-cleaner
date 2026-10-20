@@ -168,10 +168,6 @@ document.addEventListener("DOMContentLoaded", () => {
     chrome.tabs.create({ url: serverUrl });
   });
 
-  $("open-tracking-btn")?.addEventListener("click", () => {
-    chrome.tabs.create({ url: `${serverUrl}/tracking/${activeAccountId}` });
-  });
-
   $("retry-btn")?.addEventListener("click", () => init());
 
   $("change-url-btn")?.addEventListener("click", () => {

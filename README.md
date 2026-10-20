@@ -1,102 +1,80 @@
 # Gmail Cleaner
 
-Herramienta local para detectar y eliminar spam, phishing y listas indeseadas de Gmail. Incluye detección de brechas de datos y opt-out semi-automatizado de data brokers.
+A local web app that finds spam, phishing and newsletters in Gmail, unsubscribes from them or blocks them, and checks
+your address against known data breaches. Everything runs on your own machine.
 
-## Características
+One-day prototype, built in May 2026. Case study: https://dev.luitiescobar.com/work/gmail-cleaner/
 
-- **Multi-cuenta** — Agrega varias cuentas Gmail con wizard guiado
-- **Scan de bandeja** — Detecta spam, phishing y newsletters por cabeceras de email
-- **Desuscripción automática** — Usa el header `List-Unsubscribe` para salir de listas legítimas
-- **Bloqueo de remitentes** — Crea filtros Gmail para enviar spam/phishing directo a la papelera
-- **Detección de brechas** — Verifica tu email contra Have I Been Pwned
-- **Opt-out data brokers** — Solicitudes semi-automatizadas a ~20 data brokers
-- **Tracking en tiempo real** — Dashboard con SSE que muestra el estado de opt-outs en vivo
-- **Extensión Chrome** — Badge y popup con resumen del estado de tu cuenta
+## Features
 
-## Instalación
+- **Several Gmail accounts**, added through a guided OAuth wizard.
+- **Inbox scan** of up to 500 messages. Each sender gets a risk score from its headers, authentication results
+  (SPF, DKIM, DMARC), phishing keywords and a list of bulk-mail domains.
+- **Unsubscribe** through the standard `List-Unsubscribe` header. It never unsubscribes from a message scored as
+  phishing, because in phishing that link is the trap.
+- **Block a sender**: creates a Gmail filter that sends their future mail to the trash and clears what's already there.
+- **Data breach check** against Have I Been Pwned, with Claude Haiku explaining each breach and the steps to take.
+- **History** of every action, and a small **Chrome extension** with a badge and a popup.
 
-### 1. Configurar Google Cloud Console
+The spam scoring is a set of readable rules. AI is only used for the breach advice.
 
-1. Ir a [console.cloud.google.com](https://console.cloud.google.com)
-2. Crear un proyecto nuevo
-3. Habilitar la **Gmail API**
-4. Ir a "Credenciales" → Crear credenciales → **OAuth 2.0 Client ID**
-   - Tipo: **Web Application**
-   - URI de redirección autorizado: `http://localhost:8000/oauth/callback`
-5. Descargar el JSON → renombrarlo como `credentials.json` → colocarlo en la carpeta `credentials/`
+## Setup
 
-### 2. Instalar dependencias
+### 1. Google Cloud
+
+1. Create a project at [console.cloud.google.com](https://console.cloud.google.com) and enable the **Gmail API**.
+2. Create an **OAuth 2.0 Client ID** of type **Web application** with the redirect URI
+   `http://localhost:8000/oauth/callback`.
+3. Download the JSON, rename it to `credentials.json` and put it in `credentials/` (git-ignored).
+
+### 2. Install and configure
 
 ```bash
 pip install -r requirements.txt
-playwright install chromium
-```
-
-### 3. Configurar entorno
-
-```bash
 cp .env.example .env
-# Editar .env si necesitas cambiar algún valor
 ```
 
-### 4. Ejecutar la app
+Optionally add `HIBP_API_KEY` (breach check) and `ANTHROPIC_API_KEY` (breach advice) to `.env`.
+
+### 3. Run
 
 ```bash
 uvicorn backend.main:app --reload
 ```
 
-Abrir `http://localhost:8000` en el browser — el wizard de onboarding te guiará.
+Open http://localhost:8000 and the onboarding wizard takes it from there.
 
----
+## Chrome extension
 
-## Extensión Chrome
+1. Open `chrome://extensions/` and turn on **Developer mode**.
+2. Click **Load unpacked** and select the `chrome-extension/` folder.
+3. The first time you open the popup, confirm the server URL (default `http://localhost:8000`).
 
-1. Abrir `chrome://extensions/` → activar **"Developer mode"**
-2. Clic en **"Load unpacked"** → seleccionar la carpeta `chrome-extension/`
-3. La primera vez que abres el popup, confirma la URL del servidor (default: `http://localhost:8000`)
+The badge shows the number of open issues. The popup can start a scan or open the dashboard. It needs the local app
+running.
 
-La extensión muestra un badge con el número de issues activos y permite escanear/abrir el dashboard desde cualquier pestaña.
-
----
-
-## Arquitectura
+## Structure
 
 ```
 backend/
-├── main.py          # FastAPI app, todas las rutas
-├── database.py      # SQLAlchemy ORM, init de DB
-├── accounts.py      # CRUD multi-cuenta
-├── gmail_client.py  # OAuth2 + Gmail API wrapper
-├── spam_analyzer.py # Detección spam/phishing
-├── unsubscriber.py  # List-Unsubscribe automation
-├── blocker.py       # Filtros Gmail
-├── breach_checker.py# HIBP API
-├── data_broker.py   # 20 data brokers + Playwright opt-out
-└── sse.py           # Server-Sent Events para tracking real-time
-
-frontend/
-├── templates/       # Jinja2 HTML templates
-└── static/          # CSS + JS (app.js, tracking.js)
-
-chrome-extension/    # Manifest V3
+  main.py           FastAPI app and routes
+  database.py       SQLAlchemy models (SQLite in data/)
+  accounts.py       multi-account management
+  gmail_client.py   OAuth2 + Gmail API wrapper
+  spam_analyzer.py  spam and phishing scoring
+  unsubscriber.py   List-Unsubscribe handling
+  blocker.py        Gmail filters
+  breach_checker.py Have I Been Pwned
+  breach_advice.py  breach explanations with Claude
+frontend/           Jinja2 templates, CSS and JS
+chrome-extension/   Manifest V3
 ```
 
-**Base de datos**: SQLite local (`data/gmail_cleaner.db`). Para migrar a PostgreSQL: cambiar `DATABASE_URL` en `.env` por `postgresql+asyncpg://...`.
+## Privacy
 
----
+- Data is stored locally in `data/` (SQLite). OAuth credentials and tokens live in `credentials/`. Both are git-ignored.
+- The app only talks to the Gmail API, Have I Been Pwned and, if you add a key, the Anthropic API.
 
-## Limitaciones
+## Author
 
-- **Phishing**: Los emails de phishing puro **no** se desuscriben — solo se bloquean. Enviar unsubscribe a un phisher confirmaría que el email existe.
-- **Data brokers**: El proceso de opt-out puede tardar días o semanas. Algunos brokers exigen confirmación manual.
-- **HIBP**: Solo detecta brechas conocidas y publicadas. No cubre brechas no reportadas.
-- **Eliminación de brechas**: No es posible borrar tu email de una brecha que ya ocurrió. El opt-out de data brokers reduce la exposición futura.
-- **Extensión Chrome**: Requiere que la app local esté corriendo.
-
----
-
-## Privacidad
-
-- Todos los datos se guardan **localmente** en tu máquina
-- Las credenciales OAuth y tokens se guardan en `credentials/` (excluidas de git)
-- La única comunicación externa es: Gmail API (Google), HIBP API, y los sitios de data brokers durante opt-out
+Luiti Escobar · https://dev.luitiescobar.com
